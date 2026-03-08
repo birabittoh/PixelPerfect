@@ -1,0 +1,5 @@
+{
+  "name": "PixelPerfect",
+  "description": "A simple, static web application to upscale images using nearest neighbor interpolation.",
+  "requestFramePermissions": []
+}

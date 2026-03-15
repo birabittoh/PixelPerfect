@@ -10,6 +10,7 @@ interface ProcessedFile {
   originalSize: number;
   status: 'processing' | 'done' | 'error';
   error?: string;
+  previewUrl?: string;
   downloadUrl?: string;
   downloadName?: string;
 }
@@ -38,19 +39,21 @@ export default function App() {
       if (file?.downloadUrl) {
         URL.revokeObjectURL(file.downloadUrl);
       }
+      if (file?.previewUrl) {
+        URL.revokeObjectURL(file.previewUrl);
+      }
       return prev.filter(f => f.id !== id);
     });
   };
 
-  const processImage = async (file: File, id: string) => {
+  const processImage = async (file: File, id: string, previewUrl: string) => {
     try {
       const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
       
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = objectUrl;
+        img.src = previewUrl;
       });
 
       let newWidth, newHeight;
@@ -93,8 +96,6 @@ export default function App() {
         a.click();
         document.body.removeChild(a);
         
-        URL.revokeObjectURL(objectUrl);
-
         setFiles(prev => prev.map(f => f.id === id ? {
           ...f,
           status: 'done',
@@ -116,13 +117,14 @@ export default function App() {
       id: Math.random().toString(36).substring(7),
       name: file.name,
       originalSize: file.size,
-      status: 'processing'
+      status: 'processing',
+      previewUrl: URL.createObjectURL(file)
     }));
 
     setFiles(prev => [...newProcessedFiles, ...prev]);
 
     validFiles.forEach((file, index) => {
-      processImage(file, newProcessedFiles[index].id);
+      processImage(file, newProcessedFiles[index].id, newProcessedFiles[index].previewUrl!);
     });
   };
 
@@ -264,8 +266,17 @@ export default function App() {
                   {files.map(file => (
                     <li key={file.id} className="p-4 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg shrink-0">
-                          <ImageIcon size={16} className="text-zinc-500 dark:text-zinc-400" />
+                        <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
+                          {file.previewUrl ? (
+                            <img
+                              src={file.previewUrl}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                              style={{ imageRendering: 'pixelated' }}
+                            />
+                          ) : (
+                            <ImageIcon size={16} className="text-zinc-500 dark:text-zinc-400" />
+                          )}
                         </div>
                         <div className="truncate">
                           <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{file.name}</p>

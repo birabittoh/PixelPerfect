@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Check, Maximize2, Move, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Square, ZoomIn } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { X, Check, Maximize2, Move, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Square, ZoomIn, Plus, Minus, MoveHorizontal, MoveVertical } from 'lucide-react';
 import { CropArea } from '../types';
 
 interface ImageCropperProps {
@@ -13,6 +13,8 @@ type DragMode = 'move' | 'resize-tl' | 'resize-br' | null;
 export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, onCancel }) => {
   const [imgDims, setImgDims] = useState({ width: 0, height: 0 });
   const [crop, setCrop] = useState<CropArea>({ x: 0, y: 0, width: 0, height: 0 });
+  const repeatTimeoutRef = useRef<number | null>(null);
+  const repeatIntervalRef = useRef<number | null>(null);
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialCrop, setInitialCrop] = useState<CropArea | null>(null);
@@ -145,10 +147,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
     };
   }, [dragMode]);
 
-  const nudge = (dx: number, dy: number, ds: number = 0) => {
+  const adjust = useCallback((dx: number, dy: number, dw: number, dh: number) => {
     setCrop(prev => {
-      const newWidth = Math.max(1, Math.min(imgDims.width - prev.x, prev.width + ds));
-      const newHeight = Math.max(1, Math.min(imgDims.height - prev.y, prev.height + ds));
+      const newWidth = Math.max(1, Math.min(imgDims.width - prev.x, prev.width + dw));
+      const newHeight = Math.max(1, Math.min(imgDims.height - prev.y, prev.height + dh));
       return {
         x: Math.max(0, Math.min(imgDims.width - newWidth, prev.x + dx)),
         y: Math.max(0, Math.min(imgDims.height - newHeight, prev.y + dy)),
@@ -156,7 +158,29 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
         height: newHeight
       };
     });
-  };
+  }, [imgDims]);
+
+  const stopRepeating = useCallback(() => {
+    if (repeatTimeoutRef.current) window.clearTimeout(repeatTimeoutRef.current);
+    if (repeatIntervalRef.current) window.clearInterval(repeatIntervalRef.current);
+    repeatTimeoutRef.current = null;
+    repeatIntervalRef.current = null;
+  }, []);
+
+  const startRepeating = useCallback((dx: number, dy: number, dw: number, dh: number) => {
+    stopRepeating();
+    adjust(dx, dy, dw, dh);
+
+    repeatTimeoutRef.current = window.setTimeout(() => {
+      repeatIntervalRef.current = window.setInterval(() => {
+        adjust(dx, dy, dw, dh);
+      }, 50);
+    }, 400);
+  }, [adjust, stopRepeating]);
+
+  useEffect(() => {
+    return () => stopRepeating();
+  }, [stopRepeating]);
 
   const resetCrop = () => {
     const size = Math.min(16, imgDims.width, imgDims.height);
@@ -270,18 +294,57 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Nudge Selection</div>
-            <div className="grid grid-cols-3 gap-2 w-fit mx-auto">
-              <div />
-              <NudgeButton onClick={() => nudge(0, -1)} icon={<ChevronUp size={20} />} />
-              <div />
-              <NudgeButton onClick={() => nudge(-1, 0)} icon={<ChevronLeft size={20} />} />
-              <NudgeButton onClick={() => nudge(0, 1)} icon={<ChevronDown size={20} />} />
-              <NudgeButton onClick={() => nudge(1, 0)} icon={<ChevronRight size={20} />} />
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                <Move size={10} /> Move
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 w-fit mx-auto">
+                <div />
+                <ControlButton onStart={() => startRepeating(0, -1, 0, 0)} onStop={stopRepeating} icon={<ChevronUp size={18} />} />
+                <div />
+                <ControlButton onStart={() => startRepeating(-1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronLeft size={18} />} />
+                <ControlButton onStart={() => startRepeating(0, 1, 0, 0)} onStop={stopRepeating} icon={<ChevronDown size={18} />} />
+                <ControlButton onStart={() => startRepeating(1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronRight size={18} />} />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                <Maximize2 size={10} /> Resize
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
+                    <MoveHorizontal size={8} /> Horiz
+                  </div>
+                  <div className="flex gap-1 justify-center">
+                    <ControlButton onStart={() => startRepeating(0, 0, -1, 0)} onStop={stopRepeating} icon={<Minus size={14} />} small />
+                    <ControlButton onStart={() => startRepeating(0, 0, 1, 0)} onStop={stopRepeating} icon={<Plus size={14} />} small />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
+                    <Square size={8} /> Both
+                  </div>
+                  <div className="flex gap-1 justify-center">
+                    <ControlButton onStart={() => startRepeating(0, 0, -1, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
+                    <ControlButton onStart={() => startRepeating(0, 0, 1, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
+                    <MoveVertical size={8} /> Vert
+                  </div>
+                  <div className="flex gap-1 justify-center">
+                    <ControlButton onStart={() => startRepeating(0, 0, 0, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
+                    <ControlButton onStart={() => startRepeating(0, 0, 0, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={resetCrop}
                 className="px-3 py-2 text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
@@ -320,10 +383,14 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
   );
 };
 
-const NudgeButton = ({ onClick, icon }: { onClick: () => void; icon: React.ReactNode }) => (
+const ControlButton = ({ onStart, onStop, icon, small }: { onStart: () => void; onStop: () => void; icon: React.ReactNode, small?: boolean }) => (
   <button
-    onClick={onClick}
-    className="w-10 h-10 flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-xl hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all active:scale-90"
+    onMouseDown={(e) => { e.preventDefault(); onStart(); }}
+    onMouseUp={(e) => { e.preventDefault(); onStop(); }}
+    onMouseLeave={(e) => { e.preventDefault(); onStop(); }}
+    onTouchStart={(e) => { e.preventDefault(); onStart(); }}
+    onTouchEnd={(e) => { e.preventDefault(); onStop(); }}
+    className={`${small ? 'w-8 h-8' : 'w-10 h-10'} flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-xl hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all active:scale-90 touch-none select-none`}
   >
     {icon}
   </button>

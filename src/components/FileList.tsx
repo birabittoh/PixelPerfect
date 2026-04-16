@@ -43,10 +43,10 @@ export const FileList: React.FC<FileListProps> = ({ files, onDownload, onDelete,
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => onCropRequest(file.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-sm font-semibold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
                   >
                     <Scissors size={14} />
-                    Crop & Export
+                    Edit & Export
                   </button>
                   <div className="flex items-center border-l border-zinc-200 dark:border-zinc-700 pl-3">
                     <button

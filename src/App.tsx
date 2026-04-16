@@ -152,24 +152,27 @@ export default function App() {
           />
 
           <div className="md:col-span-2 space-y-6">
-            <Dropzone onFilesAdded={handleFilesAdded} />
+            {croppingFileId ? (
+              <ImageCropper
+                imageUrl={files.find(f => f.id === croppingFileId)?.previewUrl || ''}
+                onCrop={handleCrop}
+                onCancel={() => setCroppingFileId(null)}
+              />
+            ) : (
+              <Dropzone onFilesAdded={handleFilesAdded} />
+            )}
             <FileList
               files={files}
               onDownload={downloadFile}
               onDelete={deleteFile}
-              onCropRequest={(id) => setCroppingFileId(id)}
+              onCropRequest={(id) => {
+                setCroppingFileId(id);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
           </div>
         </div>
       </div>
-
-      {croppingFileId && (
-        <ImageCropper
-          imageUrl={files.find(f => f.id === croppingFileId)?.previewUrl || ''}
-          onCrop={handleCrop}
-          onCancel={() => setCroppingFileId(null)}
-        />
-      )}
     </div>
   );
 }

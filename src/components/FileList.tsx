@@ -1,14 +1,15 @@
 import React from 'react';
-import { Image as ImageIcon, CheckCircle, Download, Trash2, AlertCircle } from 'lucide-react';
+import { Image as ImageIcon, CheckCircle, Download, Trash2, AlertCircle, Scissors } from 'lucide-react';
 import { ProcessedFile } from '../types';
 
 interface FileListProps {
   files: ProcessedFile[];
   onDownload: (file: ProcessedFile) => void;
   onDelete: (id: string) => void;
+  onCropRequest: (id: string) => void;
 }
 
-export const FileList: React.FC<FileListProps> = ({ files, onDownload, onDelete }) => {
+export const FileList: React.FC<FileListProps> = ({ files, onDownload, onDelete, onCropRequest }) => {
   if (files.length === 0) return null;
 
   return (
@@ -38,10 +39,41 @@ export const FileList: React.FC<FileListProps> = ({ files, onDownload, onDelete 
               </div>
             </div>
             <div className="shrink-0 ml-4 flex items-center gap-4">
+              {file.status === 'pending' && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onCropRequest(file.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-sm font-semibold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                  >
+                    <Scissors size={14} />
+                    Crop & Export
+                  </button>
+                  <div className="flex items-center border-l border-zinc-200 dark:border-zinc-700 pl-3">
+                    <button
+                      onClick={() => onDelete(file.id)}
+                      className="p-1.5 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Remove from list"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
               {file.status === 'processing' && (
-                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-sm font-medium">
-                  <div className="w-4 h-4 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                  Processing
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-sm font-medium">
+                    <div className="w-4 h-4 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                    Processing
+                  </div>
+                  <div className="flex items-center border-l border-zinc-200 dark:border-zinc-700 pl-3">
+                    <button
+                      onClick={() => onDelete(file.id)}
+                      className="p-1.5 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Remove from list"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
               {file.status === 'done' && (

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Dimension, OutputFormat, Mode, ProcessedFile } from './types';
+import { useState, useEffect, useCallback } from 'react';
+import { Dimension, OutputFormat, Mode, ProcessedFile, CropArea } from './types';
 import { Header } from './components/Header';
 import { SettingsPanel } from './components/SettingsPanel';
 import { Dropzone } from './components/Dropzone';
 import { FileList } from './components/FileList';
+import { ImageCropper } from './components/ImageCropper';
 import { processImage } from './utils/imageProcessor';
 
 export default function App() {
@@ -24,6 +25,8 @@ export default function App() {
     const saved = localStorage.getItem('pp_scaleFactor');
     return saved ? Number(saved) : 4;
   });
+
+  const [croppingFileId, setCroppingFileId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('pp_mode', mode);
@@ -70,7 +73,8 @@ export default function App() {
     });
   };
 
-  const handleProcessImage = async (file: File, id: string, previewUrl: string) => {
+  const handleProcessImage = useCallback(async (file: File, id: string, previewUrl: string, cropArea?: CropArea) => {
+    setFiles(prev => prev.map(f => f.id === id ? { ...f, status: 'processing', cropArea } : f));
     try {
       const { downloadUrl, downloadName } = await processImage(file, previewUrl, {
         mode,
@@ -78,6 +82,7 @@ export default function App() {
         targetDimension,
         targetSize,
         outputFormat,
+        cropArea
       });
 
       // Auto download
@@ -98,22 +103,32 @@ export default function App() {
       console.error('Error processing image:', error);
       setFiles(prev => prev.map(f => f.id === id ? { ...f, status: 'error', error: String(error) } : f));
     }
-  };
+  }, [mode, scaleFactor, targetDimension, targetSize, outputFormat]);
 
   const handleFilesAdded = (validFiles: File[]) => {
     const newProcessedFiles: ProcessedFile[] = validFiles.map(file => ({
       id: Math.random().toString(36).substring(7),
+      file,
       name: file.name,
       originalSize: file.size,
-      status: 'processing',
+      status: 'pending',
       previewUrl: URL.createObjectURL(file)
     }));
 
     setFiles(prev => [...newProcessedFiles, ...prev]);
 
-    validFiles.forEach((file, index) => {
-      handleProcessImage(file, newProcessedFiles[index].id, newProcessedFiles[index].previewUrl!);
-    });
+    // Open cropper for the first file if only one is added
+    if (newProcessedFiles.length === 1) {
+      setCroppingFileId(newProcessedFiles[0].id);
+    }
+  };
+
+  const handleCrop = (crop: CropArea) => {
+    const file = files.find(f => f.id === croppingFileId);
+    if (file && file.previewUrl) {
+      handleProcessImage(file.file, file.id, file.previewUrl, crop);
+    }
+    setCroppingFileId(null);
   };
 
   return (
@@ -142,10 +157,19 @@ export default function App() {
               files={files}
               onDownload={downloadFile}
               onDelete={deleteFile}
+              onCropRequest={(id) => setCroppingFileId(id)}
             />
           </div>
         </div>
       </div>
+
+      {croppingFileId && (
+        <ImageCropper
+          imageUrl={files.find(f => f.id === croppingFileId)?.previewUrl || ''}
+          onCrop={handleCrop}
+          onCancel={() => setCroppingFileId(null)}
+        />
+      )}
     </div>
   );
 }

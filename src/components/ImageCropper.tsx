@@ -182,14 +182,13 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
     return () => stopRepeating();
   }, [stopRepeating]);
 
-  const resetCrop = () => {
-    const size = Math.min(16, imgDims.width, imgDims.height);
-    setCrop({
-      x: Math.round((imgDims.width - size) / 2),
-      y: Math.round((imgDims.height - size) / 2),
+  const makeSquare = () => {
+    const size = Math.min(crop.width, crop.height);
+    setCrop(prev => ({
+      ...prev,
       width: size,
       height: size
-    });
+    }));
   };
 
   const fullImage = () => {
@@ -197,33 +196,17 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[95vh]">
-        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/50">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-              <Square size={20} className="text-indigo-600" />
-              Precise Crop
-            </h2>
-            <p className="text-xs text-zinc-500">Select exactly the pixels you want to upscale.</p>
-          </div>
-          <button
-            onClick={onCancel}
-            className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-zinc-100 dark:divide-zinc-800 min-h-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[98vh]">
+        <div className="flex-1 flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-zinc-100 dark:divide-zinc-800 min-h-0">
           {/* Main Selection Area */}
-          <div className="flex-1 p-6 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950/30 overflow-auto">
+          <div className="flex-1 p-4 sm:p-6 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950/30 overflow-hidden">
             <div className="relative inline-block touch-none select-none shadow-2xl rounded-lg overflow-hidden">
               <img
                 ref={imgRef}
                 src={imageUrl}
                 alt="Crop target"
-                className="max-w-full max-h-[60vh] block pointer-events-none"
+                className="max-w-full max-h-[40vh] lg:max-h-[60vh] block pointer-events-none"
                 style={{ imageRendering: 'pixelated' }}
               />
               <div className="absolute inset-0 bg-black/60 pointer-events-none"></div>
@@ -274,13 +257,18 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
           </div>
 
           {/* Precision Panel */}
-          <div className="w-full lg:w-80 bg-white dark:bg-zinc-900 p-6 flex flex-col gap-6 overflow-y-auto">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                <ZoomIn size={16} className="text-indigo-500" />
-                Precision Preview
+          <div className="w-full lg:w-80 bg-white dark:bg-zinc-900 p-3 sm:p-6 flex flex-col gap-3 overflow-hidden shrink-0">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                <div className="flex items-center gap-1.5">
+                  <ZoomIn size={14} className="text-indigo-500" />
+                  Preview
+                </div>
+                <div className="font-mono text-[10px] text-zinc-400">
+                  {crop.width}x{crop.height} px
+                </div>
               </div>
-              <div className="aspect-square bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 shadow-inner flex items-center justify-center">
+              <div className="relative aspect-square bg-zinc-100 dark:bg-zinc-950 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 shadow-inner flex items-center justify-center group">
                 <canvas
                   ref={magnifierCanvasRef}
                   width={256}
@@ -288,84 +276,63 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
                   className="w-full h-full object-contain"
                   style={{ imageRendering: 'pixelated' }}
                 />
+
+                {/* Overlay Controls */}
+                <div className="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-1 p-1.5 pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity">
+                  {/* Row 1: Resize Horiz-, Resize Vert-, Move Up, Resize Vert+, Resize Horiz+ */}
+                  <div className="col-start-1 row-start-1">
+                    <ControlButton onStart={() => startRepeating(0, 0, -1, 0)} onStop={stopRepeating} icon={<div className="flex flex-col items-center"><MoveHorizontal size={10}/><Minus size={10}/></div>} small />
+                  </div>
+                  <div className="col-start-2 row-start-1">
+                    <ControlButton onStart={() => startRepeating(0, 0, 0, -1)} onStop={stopRepeating} icon={<div className="flex flex-col items-center"><MoveVertical size={10}/><Minus size={10}/></div>} small />
+                  </div>
+                  <div className="col-start-3 row-start-1">
+                    <ControlButton onStart={() => startRepeating(0, -1, 0, 0)} onStop={stopRepeating} icon={<ChevronUp size={16} />} small />
+                  </div>
+                  <div className="col-start-4 row-start-1">
+                    <ControlButton onStart={() => startRepeating(0, 0, 0, 1)} onStop={stopRepeating} icon={<div className="flex flex-col items-center"><MoveVertical size={10}/><Plus size={10}/></div>} small />
+                  </div>
+                  <div className="col-start-5 row-start-1">
+                    <ControlButton onStart={() => startRepeating(0, 0, 1, 0)} onStop={stopRepeating} icon={<div className="flex flex-col items-center"><MoveHorizontal size={10}/><Plus size={10}/></div>} small />
+                  </div>
+
+                  {/* Row 3: Move Left, Resize Both-, Square/Full, Resize Both+, Move Right */}
+                  <div className="col-start-1 row-start-3">
+                    <ControlButton onStart={() => startRepeating(-1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronLeft size={16} />} small />
+                  </div>
+                  <div className="col-start-2 row-start-3">
+                    <ControlButton onStart={() => startRepeating(0, 0, -1, -1)} onStop={stopRepeating} icon={<div className="flex flex-col items-center"><Square size={10}/><Minus size={10}/></div>} small />
+                  </div>
+                  <div className="col-start-3 row-start-3 flex flex-col gap-1">
+                     <button onClick={makeSquare} title="Square" className="w-full h-1/2 flex items-center justify-center bg-white/60 dark:bg-zinc-800/60 border border-zinc-200/30 dark:border-zinc-700/30 text-zinc-600 dark:text-zinc-400 rounded-sm sm:rounded-md hover:bg-white dark:hover:bg-zinc-700 hover:text-indigo-600 transition-all active:scale-95 pointer-events-auto shadow-sm">
+                        <Square size={10} />
+                     </button>
+                     <button onClick={fullImage} title="Full Image" className="w-full h-1/2 flex items-center justify-center bg-white/60 dark:bg-zinc-800/60 border border-zinc-200/30 dark:border-zinc-700/30 text-zinc-600 dark:text-zinc-400 rounded-sm sm:rounded-md hover:bg-white dark:hover:bg-zinc-700 hover:text-indigo-600 transition-all active:scale-95 pointer-events-auto shadow-sm">
+                        <Maximize2 size={10} />
+                     </button>
+                  </div>
+                  <div className="col-start-4 row-start-3">
+                    <ControlButton onStart={() => startRepeating(0, 0, 1, 1)} onStop={stopRepeating} icon={<div className="flex flex-col items-center"><Square size={10}/><Plus size={10}/></div>} small />
+                  </div>
+                  <div className="col-start-5 row-start-3">
+                    <ControlButton onStart={() => startRepeating(1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronRight size={16} />} small />
+                  </div>
+
+                  {/* Row 5: Move Down */}
+                  <div className="col-start-3 row-start-5">
+                    <ControlButton onStart={() => startRepeating(0, 1, 0, 0)} onStop={stopRepeating} icon={<ChevronDown size={16} />} small />
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between text-[10px] font-mono text-zinc-400 uppercase tracking-wider">
+              <div className="flex justify-between text-[10px] font-mono text-zinc-400 uppercase tracking-wider px-1">
                 <span>X: {crop.x} Y: {crop.y}</span>
-                <span>{crop.width}x{crop.height} px</span>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                  <Move size={10} /> Move
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 w-fit mx-auto">
-                  <div />
-                  <ControlButton onStart={() => startRepeating(0, -1, 0, 0)} onStop={stopRepeating} icon={<ChevronUp size={18} />} />
-                  <div />
-                  <ControlButton onStart={() => startRepeating(-1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronLeft size={18} />} />
-                  <ControlButton onStart={() => startRepeating(0, 1, 0, 0)} onStop={stopRepeating} icon={<ChevronDown size={18} />} />
-                  <ControlButton onStart={() => startRepeating(1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronRight size={18} />} />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                  <Maximize2 size={10} /> Resize
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
-                      <MoveHorizontal size={8} /> Horiz
-                    </div>
-                    <div className="flex gap-1 justify-center">
-                      <ControlButton onStart={() => startRepeating(0, 0, -1, 0)} onStop={stopRepeating} icon={<Minus size={14} />} small />
-                      <ControlButton onStart={() => startRepeating(0, 0, 1, 0)} onStop={stopRepeating} icon={<Plus size={14} />} small />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
-                      <Square size={8} /> Both
-                    </div>
-                    <div className="flex gap-1 justify-center">
-                      <ControlButton onStart={() => startRepeating(0, 0, -1, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
-                      <ControlButton onStart={() => startRepeating(0, 0, 1, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
-                      <MoveVertical size={8} /> Vert
-                    </div>
-                    <div className="flex gap-1 justify-center">
-                      <ControlButton onStart={() => startRepeating(0, 0, 0, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
-                      <ControlButton onStart={() => startRepeating(0, 0, 0, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={resetCrop}
-                  className="px-3 py-2 text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Square size={14} />
-                  Small Square
-                </button>
-                <button
-                  onClick={fullImage}
-                  className="px-3 py-2 text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Maximize2 size={14} />
-                  Full Image
-                </button>
+                <span>PixelPerfect</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950/50 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+        <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950/50 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
           <button
             onClick={onCancel}
             className="px-6 py-2.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
@@ -377,7 +344,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
             className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-500/25 transition-all flex items-center gap-2 active:scale-95"
           >
             <Check size={18} />
-            Confirm & Export
+            Export
           </button>
         </div>
       </div>
@@ -392,7 +359,7 @@ const ControlButton = ({ onStart, onStop, icon, small }: { onStart: () => void; 
     onMouseLeave={(e) => { e.preventDefault(); onStop(); }}
     onTouchStart={(e) => { e.preventDefault(); onStart(); }}
     onTouchEnd={(e) => { e.preventDefault(); onStop(); }}
-    className={`${small ? 'w-8 h-8' : 'w-10 h-10'} flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-xl hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all active:scale-90 touch-none select-none`}
+    className={`${small ? 'w-full h-full' : 'w-10 h-10'} flex items-center justify-center bg-white/60 dark:bg-zinc-800/60 border border-zinc-200/30 dark:border-zinc-700/30 text-zinc-600 dark:text-zinc-400 rounded-sm sm:rounded-lg hover:bg-white dark:hover:bg-zinc-700 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all active:scale-90 touch-none select-none pointer-events-auto`}
   >
     {icon}
   </button>

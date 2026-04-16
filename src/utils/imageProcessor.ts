@@ -1,4 +1,4 @@
-import { Dimension, OutputFormat, Mode } from '../types';
+import { Dimension, OutputFormat, Mode, CropArea } from '../types';
 
 interface ProcessOptions {
   mode: Mode;
@@ -6,6 +6,7 @@ interface ProcessOptions {
   targetDimension: Dimension;
   targetSize: number;
   outputFormat: OutputFormat;
+  cropArea?: CropArea;
 }
 
 export const processImage = async (
@@ -13,7 +14,7 @@ export const processImage = async (
   previewUrl: string,
   options: ProcessOptions
 ): Promise<{ downloadUrl: string; downloadName: string }> => {
-  const { mode, scaleFactor, targetDimension, targetSize, outputFormat } = options;
+  const { mode, scaleFactor, targetDimension, targetSize, outputFormat, cropArea } = options;
 
   const img = new Image();
   await new Promise((resolve, reject) => {
@@ -22,21 +23,26 @@ export const processImage = async (
     img.src = previewUrl;
   });
 
+  const sourceWidth = cropArea ? cropArea.width : img.width;
+  const sourceHeight = cropArea ? cropArea.height : img.height;
+  const sourceX = cropArea ? cropArea.x : 0;
+  const sourceY = cropArea ? cropArea.y : 0;
+
   let newWidth, newHeight;
   let finalScaleFactor = scaleFactor;
 
   if (mode === 'preset') {
-    newWidth = Math.round(img.width * scaleFactor);
-    newHeight = Math.round(img.height * scaleFactor);
+    newWidth = Math.round(sourceWidth * scaleFactor);
+    newHeight = Math.round(sourceHeight * scaleFactor);
   } else {
     if (targetDimension === 'height') {
       newHeight = targetSize;
-      newWidth = Math.round(img.width * (targetSize / img.height));
-      finalScaleFactor = targetSize / img.height;
+      newWidth = Math.round(sourceWidth * (targetSize / sourceHeight));
+      finalScaleFactor = targetSize / sourceHeight;
     } else {
       newWidth = targetSize;
-      newHeight = Math.round(img.height * (targetSize / img.width));
-      finalScaleFactor = targetSize / img.width;
+      newHeight = Math.round(sourceHeight * (targetSize / sourceWidth));
+      finalScaleFactor = targetSize / sourceWidth;
     }
   }
 
@@ -48,7 +54,7 @@ export const processImage = async (
 
   // Nearest neighbor scaling
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, newWidth, newHeight);
+  ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, newWidth, newHeight);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {

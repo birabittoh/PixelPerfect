@@ -73,8 +73,20 @@ export default function App() {
     });
   };
 
-  const handleProcessImage = useCallback(async (file: File, id: string, previewUrl: string, cropArea?: CropArea) => {
-    setFiles(prev => prev.map(f => f.id === id ? { ...f, status: 'processing', cropArea } : f));
+  const handleProcessImage = useCallback(async (file: File, originalName: string, previewUrl: string, cropArea?: CropArea) => {
+    const id = Math.random().toString(36).substring(7);
+    const newFile: ProcessedFile = {
+      id,
+      file,
+      name: originalName,
+      originalSize: file.size,
+      status: 'processing',
+      previewUrl: URL.createObjectURL(file), // This is fine as it's a new ref but we might want to optimize
+      cropArea
+    };
+
+    setFiles(prev => [newFile, ...prev]);
+
     try {
       const { downloadUrl, downloadName } = await processImage(file, previewUrl, {
         mode,
@@ -93,12 +105,20 @@ export default function App() {
       a.click();
       document.body.removeChild(a);
 
-      setFiles(prev => prev.map(f => f.id === id ? {
-        ...f,
-        status: 'done',
-        downloadUrl,
-        downloadName
-      } : f));
+      setFiles(prev => prev.map(f => {
+        if (f.id === id) {
+          // Revoke the temporary preview URL created for the 'processing' state
+          if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+          return {
+            ...f,
+            status: 'done',
+            downloadUrl,
+            downloadName,
+            previewUrl: downloadUrl
+          };
+        }
+        return f;
+      }));
     } catch (error) {
       console.error('Error processing image:', error);
       setFiles(prev => prev.map(f => f.id === id ? { ...f, status: 'error', error: String(error) } : f));
@@ -126,7 +146,7 @@ export default function App() {
   const handleCrop = (crop: CropArea) => {
     const file = files.find(f => f.id === croppingFileId);
     if (file && file.previewUrl) {
-      handleProcessImage(file.file, file.id, file.previewUrl, crop);
+      handleProcessImage(file.file, file.name, file.previewUrl, crop);
     }
     setCroppingFileId(null);
   };
@@ -152,27 +172,24 @@ export default function App() {
           />
 
           <div className="md:col-span-2 space-y-6">
-            {croppingFileId ? (
-              <ImageCropper
-                imageUrl={files.find(f => f.id === croppingFileId)?.previewUrl || ''}
-                onCrop={handleCrop}
-                onCancel={() => setCroppingFileId(null)}
-              />
-            ) : (
-              <Dropzone onFilesAdded={handleFilesAdded} />
-            )}
+            <Dropzone onFilesAdded={handleFilesAdded} />
             <FileList
               files={files}
               onDownload={downloadFile}
               onDelete={deleteFile}
-              onCropRequest={(id) => {
-                setCroppingFileId(id);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onCropRequest={(id) => setCroppingFileId(id)}
             />
           </div>
         </div>
       </div>
+
+      {croppingFileId && (
+        <ImageCropper
+          imageUrl={files.find(f => f.id === croppingFileId)?.previewUrl || ''}
+          onCrop={handleCrop}
+          onCancel={() => setCroppingFileId(null)}
+        />
+      )}
     </div>
   );
 }

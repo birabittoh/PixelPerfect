@@ -43,30 +43,32 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw zoomed in area (magnifier)
-      // Center the magnifier on the current crop or selection point
-      // We want to see the edges of our selection clearly
+      const scale = Math.min(canvas.width / crop.width, canvas.height / crop.height);
+      const drawWidth = crop.width * scale;
+      const drawHeight = crop.height * scale;
+      const offsetX = (canvas.width - drawWidth) / 2;
+      const offsetY = (canvas.height - drawHeight) / 2;
+
       ctx.drawImage(
         img,
         crop.x, crop.y, crop.width, crop.height,
-        0, 0, canvas.width, canvas.height
+        offsetX, offsetY, drawWidth, drawHeight
       );
 
-      // Draw a subtle pixel grid if zoomed in enough
-      if (canvas.width / crop.width > 8) {
+      if (scale > 8) {
+        const step = scale;
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.lineWidth = 0.5;
-        const step = canvas.width / crop.width;
-        for (let x = 0; x <= canvas.width; x += step) {
+        for (let x = offsetX; x <= offsetX + drawWidth + 0.1; x += step) {
           ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, canvas.height);
+          ctx.moveTo(x, offsetY);
+          ctx.lineTo(x, offsetY + drawHeight);
           ctx.stroke();
         }
-        for (let y = 0; y <= canvas.height; y += step) {
+        for (let y = offsetY; y <= offsetY + drawHeight + 0.1; y += step) {
           ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(canvas.width, y);
+          ctx.moveTo(offsetX, y);
+          ctx.lineTo(offsetX + drawWidth, y);
           ctx.stroke();
         }
       }
@@ -112,17 +114,15 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
       newCrop.x = Math.max(0, Math.min(imgDims.width - initialCrop.width, Math.round(initialCrop.x + dx)));
       newCrop.y = Math.max(0, Math.min(imgDims.height - initialCrop.height, Math.round(initialCrop.y + dy)));
     } else if (dragMode === 'resize-br') {
-      const size = Math.max(1, Math.min(Math.round(initialCrop.width + dx), Math.round(initialCrop.width + dy), imgDims.width - initialCrop.x, imgDims.height - initialCrop.y));
-      newCrop.width = size;
-      newCrop.height = size;
+      newCrop.width = Math.max(1, Math.min(Math.round(initialCrop.width + dx), imgDims.width - initialCrop.x));
+      newCrop.height = Math.max(1, Math.min(Math.round(initialCrop.height + dy), imgDims.height - initialCrop.y));
     } else if (dragMode === 'resize-tl') {
-      const available = Math.min(initialCrop.x, initialCrop.y);
-      const delta = Math.min(dx, dy);
-      const sizeChange = Math.max(-available, Math.min(Math.round(delta), initialCrop.width - 1));
-      newCrop.x = initialCrop.x + sizeChange;
-      newCrop.y = initialCrop.y + sizeChange;
-      newCrop.width = initialCrop.width - sizeChange;
-      newCrop.height = initialCrop.height - sizeChange;
+      const dx_adj = Math.max(-initialCrop.x, Math.min(Math.round(dx), initialCrop.width - 1));
+      const dy_adj = Math.max(-initialCrop.y, Math.min(Math.round(dy), initialCrop.height - 1));
+      newCrop.x = initialCrop.x + dx_adj;
+      newCrop.y = initialCrop.y + dy_adj;
+      newCrop.width = initialCrop.width - dx_adj;
+      newCrop.height = initialCrop.height - dy_adj;
     }
 
     setCrop(newCrop);
@@ -197,187 +197,189 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-500">
-      <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/50">
-        <div>
-          <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-            <Square size={20} className="text-indigo-600" />
-            Precise Crop
-          </h2>
-          <p className="text-xs text-zinc-500">Select exactly the pixels you want to upscale.</p>
-        </div>
-        <button
-          onClick={onCancel}
-          className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-zinc-100 dark:divide-zinc-800">
-        {/* Main Selection Area */}
-        <div className="flex-1 p-6 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950/30 min-h-[300px] max-h-[500px] overflow-auto">
-          <div className="relative inline-block touch-none select-none shadow-2xl rounded-lg overflow-hidden">
-            <img
-              ref={imgRef}
-              src={imageUrl}
-              alt="Crop target"
-              className="max-w-full max-h-[40vh] block pointer-events-none"
-              style={{ imageRendering: 'pixelated' }}
-            />
-            <div className="absolute inset-0 bg-black/60 pointer-events-none"></div>
-
-            <div
-              className="absolute border-2 border-indigo-500 cursor-move"
-              style={{
-                left: `${(crop.x / imgDims.width) * 100}%`,
-                top: `${(crop.y / imgDims.height) * 100}%`,
-                width: `${(crop.width / imgDims.width) * 100}%`,
-                height: `${(crop.height / imgDims.height) * 100}%`
-              }}
-              onMouseDown={(e) => handleStart(e, 'move')}
-              onTouchStart={(e) => handleStart(e, 'move')}
-            >
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <img
-                  src={imageUrl}
-                  alt="Crop preview"
-                  className="absolute max-w-none"
-                  style={{
-                    left: `${(-crop.x / imgDims.width) * (imgRef.current?.clientWidth || 0)}px`,
-                    top: `${(-crop.y / imgDims.height) * (imgRef.current?.clientHeight || 0)}px`,
-                    width: `${imgRef.current?.clientWidth || 0}px`,
-                    height: `${imgRef.current?.clientHeight || 0}px`,
-                    imageRendering: 'pixelated'
-                  }}
-                />
-              </div>
-
-              {/* Resize Handles */}
-              <div
-                className="absolute -top-3 -left-3 w-6 h-6 flex items-center justify-center cursor-nwse-resize"
-                onMouseDown={(e) => handleStart(e, 'resize-tl')}
-                onTouchStart={(e) => handleStart(e, 'resize-tl')}
-              >
-                <div className="w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm"></div>
-              </div>
-              <div
-                className="absolute -bottom-3 -right-3 w-6 h-6 flex items-center justify-center cursor-nwse-resize"
-                onMouseDown={(e) => handleStart(e, 'resize-br')}
-                onTouchStart={(e) => handleStart(e, 'resize-br')}
-              >
-                <div className="w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm"></div>
-              </div>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[95vh]">
+        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/50">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+              <Square size={20} className="text-indigo-600" />
+              Precise Crop
+            </h2>
+            <p className="text-xs text-zinc-500">Select exactly the pixels you want to upscale.</p>
           </div>
+          <button
+            onClick={onCancel}
+            className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        {/* Precision Panel */}
-        <div className="w-full lg:w-80 bg-white dark:bg-zinc-900 p-6 flex flex-col gap-6">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-              <ZoomIn size={16} className="text-indigo-500" />
-              Precision Preview
-            </div>
-            <div className="aspect-square bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 shadow-inner flex items-center justify-center">
-              <canvas
-                ref={magnifierCanvasRef}
-                width={256}
-                height={256}
-                className="w-full h-full object-contain"
+        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-zinc-100 dark:divide-zinc-800 min-h-0">
+          {/* Main Selection Area */}
+          <div className="flex-1 p-6 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950/30 overflow-auto">
+            <div className="relative inline-block touch-none select-none shadow-2xl rounded-lg overflow-hidden">
+              <img
+                ref={imgRef}
+                src={imageUrl}
+                alt="Crop target"
+                className="max-w-full max-h-[60vh] block pointer-events-none"
                 style={{ imageRendering: 'pixelated' }}
               />
-            </div>
-            <div className="flex justify-between text-[10px] font-mono text-zinc-400 uppercase tracking-wider">
-              <span>X: {crop.x} Y: {crop.y}</span>
-              <span>{crop.width}x{crop.height} px</span>
+              <div className="absolute inset-0 bg-black/60 pointer-events-none"></div>
+
+              <div
+                className="absolute border-2 border-indigo-500 cursor-move"
+                style={{
+                  left: `${(crop.x / imgDims.width) * 100}%`,
+                  top: `${(crop.y / imgDims.height) * 100}%`,
+                  width: `${(crop.width / imgDims.width) * 100}%`,
+                  height: `${(crop.height / imgDims.height) * 100}%`
+                }}
+                onMouseDown={(e) => handleStart(e, 'move')}
+                onTouchStart={(e) => handleStart(e, 'move')}
+              >
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <img
+                    src={imageUrl}
+                    alt="Crop preview"
+                    className="absolute max-w-none"
+                    style={{
+                      left: `${(-crop.x / imgDims.width) * (imgRef.current?.clientWidth || 0)}px`,
+                      top: `${(-crop.y / imgDims.height) * (imgRef.current?.clientHeight || 0)}px`,
+                      width: `${imgRef.current?.clientWidth || 0}px`,
+                      height: `${imgRef.current?.clientHeight || 0}px`,
+                      imageRendering: 'pixelated'
+                    }}
+                  />
+                </div>
+
+                {/* Resize Handles */}
+                <div
+                  className="absolute -top-3 -left-3 w-6 h-6 flex items-center justify-center cursor-nwse-resize"
+                  onMouseDown={(e) => handleStart(e, 'resize-tl')}
+                  onTouchStart={(e) => handleStart(e, 'resize-tl')}
+                >
+                  <div className="w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm"></div>
+                </div>
+                <div
+                  className="absolute -bottom-3 -right-3 w-6 h-6 flex items-center justify-center cursor-nwse-resize"
+                  onMouseDown={(e) => handleStart(e, 'resize-br')}
+                  onTouchStart={(e) => handleStart(e, 'resize-br')}
+                >
+                  <div className="w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm"></div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-6">
+          {/* Precision Panel */}
+          <div className="w-full lg:w-80 bg-white dark:bg-zinc-900 p-6 flex flex-col gap-6 overflow-y-auto">
             <div className="space-y-3">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                <Move size={10} /> Move
+              <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                <ZoomIn size={16} className="text-indigo-500" />
+                Precision Preview
               </div>
-              <div className="grid grid-cols-3 gap-1.5 w-fit mx-auto">
-                <div />
-                <ControlButton onStart={() => startRepeating(0, -1, 0, 0)} onStop={stopRepeating} icon={<ChevronUp size={18} />} />
-                <div />
-                <ControlButton onStart={() => startRepeating(-1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronLeft size={18} />} />
-                <ControlButton onStart={() => startRepeating(0, 1, 0, 0)} onStop={stopRepeating} icon={<ChevronDown size={18} />} />
-                <ControlButton onStart={() => startRepeating(1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronRight size={18} />} />
+              <div className="aspect-square bg-zinc-100 dark:bg-zinc-950 rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 shadow-inner flex items-center justify-center">
+                <canvas
+                  ref={magnifierCanvasRef}
+                  width={256}
+                  height={256}
+                  className="w-full h-full object-contain"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-mono text-zinc-400 uppercase tracking-wider">
+                <span>X: {crop.x} Y: {crop.y}</span>
+                <span>{crop.width}x{crop.height} px</span>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                <Maximize2 size={10} /> Resize
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
-                    <MoveHorizontal size={8} /> Horiz
-                  </div>
-                  <div className="flex gap-1 justify-center">
-                    <ControlButton onStart={() => startRepeating(0, 0, -1, 0)} onStop={stopRepeating} icon={<Minus size={14} />} small />
-                    <ControlButton onStart={() => startRepeating(0, 0, 1, 0)} onStop={stopRepeating} icon={<Plus size={14} />} small />
-                  </div>
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                  <Move size={10} /> Move
                 </div>
-                <div className="space-y-1.5">
-                  <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
-                    <Square size={8} /> Both
-                  </div>
-                  <div className="flex gap-1 justify-center">
-                    <ControlButton onStart={() => startRepeating(0, 0, -1, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
-                    <ControlButton onStart={() => startRepeating(0, 0, 1, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
-                    <MoveVertical size={8} /> Vert
-                  </div>
-                  <div className="flex gap-1 justify-center">
-                    <ControlButton onStart={() => startRepeating(0, 0, 0, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
-                    <ControlButton onStart={() => startRepeating(0, 0, 0, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
-                  </div>
+                <div className="grid grid-cols-3 gap-1.5 w-fit mx-auto">
+                  <div />
+                  <ControlButton onStart={() => startRepeating(0, -1, 0, 0)} onStop={stopRepeating} icon={<ChevronUp size={18} />} />
+                  <div />
+                  <ControlButton onStart={() => startRepeating(-1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronLeft size={18} />} />
+                  <ControlButton onStart={() => startRepeating(0, 1, 0, 0)} onStop={stopRepeating} icon={<ChevronDown size={18} />} />
+                  <ControlButton onStart={() => startRepeating(1, 0, 0, 0)} onStop={stopRepeating} icon={<ChevronRight size={18} />} />
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={resetCrop}
-                className="px-3 py-2 text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Square size={14} />
-                Small Square
-              </button>
-              <button
-                onClick={fullImage}
-                className="px-3 py-2 text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Maximize2 size={14} />
-                Full Image
-              </button>
+              <div className="space-y-3">
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                  <Maximize2 size={10} /> Resize
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
+                      <MoveHorizontal size={8} /> Horiz
+                    </div>
+                    <div className="flex gap-1 justify-center">
+                      <ControlButton onStart={() => startRepeating(0, 0, -1, 0)} onStop={stopRepeating} icon={<Minus size={14} />} small />
+                      <ControlButton onStart={() => startRepeating(0, 0, 1, 0)} onStop={stopRepeating} icon={<Plus size={14} />} small />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
+                      <Square size={8} /> Both
+                    </div>
+                    <div className="flex gap-1 justify-center">
+                      <ControlButton onStart={() => startRepeating(0, 0, -1, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
+                      <ControlButton onStart={() => startRepeating(0, 0, 1, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="text-[8px] text-zinc-500 text-center flex items-center justify-center gap-1">
+                      <MoveVertical size={8} /> Vert
+                    </div>
+                    <div className="flex gap-1 justify-center">
+                      <ControlButton onStart={() => startRepeating(0, 0, 0, -1)} onStop={stopRepeating} icon={<Minus size={14} />} small />
+                      <ControlButton onStart={() => startRepeating(0, 0, 0, 1)} onStop={stopRepeating} icon={<Plus size={14} />} small />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={resetCrop}
+                  className="px-3 py-2 text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Square size={14} />
+                  Small Square
+                </button>
+                <button
+                  onClick={fullImage}
+                  className="px-3 py-2 text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Maximize2 size={14} />
+                  Full Image
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950/50 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-        <button
-          onClick={onCancel}
-          className="px-6 py-2.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => onCrop(crop)}
-          className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-500/25 transition-all flex items-center gap-2 active:scale-95"
-        >
-          <Check size={18} />
-          Confirm & Export
-        </button>
+        <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950/50 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+          <button
+            onClick={onCancel}
+            className="px-6 py-2.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onCrop(crop)}
+            className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-500/25 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <Check size={18} />
+            Confirm & Export
+          </button>
+        </div>
       </div>
     </div>
   );

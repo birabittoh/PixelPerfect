@@ -239,7 +239,7 @@ export default function App() {
                   <div>
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Scale Presets</label>
                     <div className="grid grid-cols-4 gap-2">
-                      {[2, 4, 8, 16].map((factor) => (
+                      {[4, 16, 64, 256].map((factor) => (
                         <button
                           key={factor}
                           onClick={() => setScaleFactor(factor)}

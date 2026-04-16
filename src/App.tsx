@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, Image as ImageIcon, CheckCircle, Settings, AlertCircle, Download, Trash2 } from 'lucide-react';
 
 type Dimension = 'width' | 'height';
@@ -16,10 +16,45 @@ interface ProcessedFile {
 }
 
 export default function App() {
-  const [targetSize, setTargetSize] = useState<number>(2000);
-  const [targetDimension, setTargetDimension] = useState<Dimension>('height');
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>('image/png');
+  const [mode, setMode] = useState<'preset' | 'advanced'>(() => {
+    return (localStorage.getItem('pp_mode') as 'preset' | 'advanced') || 'preset';
+  });
+  const [targetSize, setTargetSize] = useState<number>(() => {
+    const saved = localStorage.getItem('pp_targetSize');
+    return saved ? Number(saved) : 2000;
+  });
+  const [targetDimension, setTargetDimension] = useState<Dimension>(() => {
+    return (localStorage.getItem('pp_targetDimension') as Dimension) || 'height';
+  });
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>(() => {
+    return (localStorage.getItem('pp_outputFormat') as OutputFormat) || 'image/png';
+  });
+  const [scaleFactor, setScaleFactor] = useState<number>(() => {
+    const saved = localStorage.getItem('pp_scaleFactor');
+    return saved ? Number(saved) : 4;
+  });
   const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('pp_mode', mode);
+  }, [mode]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_targetSize', targetSize.toString());
+  }, [targetSize]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_targetDimension', targetDimension);
+  }, [targetDimension]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_outputFormat', outputFormat);
+  }, [outputFormat]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_scaleFactor', scaleFactor.toString());
+  }, [scaleFactor]);
+
   const [files, setFiles] = useState<ProcessedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,12 +92,17 @@ export default function App() {
       });
 
       let newWidth, newHeight;
-      if (targetDimension === 'height') {
-        newHeight = targetSize;
-        newWidth = Math.round(img.width * (targetSize / img.height));
+      if (mode === 'preset') {
+        newWidth = Math.round(img.width * scaleFactor);
+        newHeight = Math.round(img.height * scaleFactor);
       } else {
-        newWidth = targetSize;
-        newHeight = Math.round(img.height * (targetSize / img.width));
+        if (targetDimension === 'height') {
+          newHeight = targetSize;
+          newWidth = Math.round(img.width * (targetSize / img.height));
+        } else {
+          newWidth = targetSize;
+          newHeight = Math.round(img.height * (targetSize / img.width));
+        }
       }
 
       const canvas = document.createElement('canvas');
@@ -178,38 +218,88 @@ export default function App() {
               <h2>Settings</h2>
             </div>
             
+            <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl mb-6">
+              <button
+                onClick={() => setMode('preset')}
+                className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${mode === 'preset' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+              >
+                Presets
+              </button>
+              <button
+                onClick={() => setMode('advanced')}
+                className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${mode === 'advanced' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+              >
+                Advanced
+              </button>
+            </div>
+
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Dimension</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setTargetDimension('width')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${targetDimension === 'width' ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
-                  >
-                    Width
-                  </button>
-                  <button
-                    onClick={() => setTargetDimension('height')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${targetDimension === 'height' ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
-                  >
-                    Height
-                  </button>
-                </div>
-              </div>
+              {mode === 'preset' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Scale Presets</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[4, 16, 64, 256].map((factor) => (
+                        <button
+                          key={factor}
+                          onClick={() => setScaleFactor(factor)}
+                          className={`px-2 py-2 text-sm font-bold rounded-lg border transition-colors ${scaleFactor === factor ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+                        >
+                          {factor}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Custom Multiplication</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={scaleFactor}
+                        onChange={(e) => setScaleFactor(Math.max(1, Number(e.target.value)))}
+                        className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow pr-8"
+                        min="1"
+                        step="1"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm font-medium pointer-events-none">x</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Dimension</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setTargetDimension('width')}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${targetDimension === 'width' ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+                      >
+                        Width
+                      </button>
+                      <button
+                        onClick={() => setTargetDimension('height')}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${targetDimension === 'height' ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+                      >
+                        Height
+                      </button>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Size (px)</label>
-                <input
-                  type="number"
-                  value={targetSize}
-                  onChange={(e) => setTargetSize(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                  min="1"
-                  step="1"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Size (px)</label>
+                    <input
+                      type="number"
+                      value={targetSize}
+                      onChange={(e) => setTargetSize(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+                      min="1"
+                      step="1"
+                    />
+                  </div>
+                </>
+              )}
 
-              <div>
+              <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Output Format</label>
                 <select
                   value={outputFormat}

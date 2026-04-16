@@ -38,10 +38,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         {/* Sliding background */}
         <div
           className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white dark:bg-zinc-700 rounded-lg shadow-sm transition-transform duration-300 ease-in-out ${
-            mode === 'advanced' ? 'translate-x-full' : 'translate-x-0'
+            mode === 'preset' ? 'translate-x-full' : 'translate-x-0'
           }`}
         />
-
+        
+        <button
+          onClick={() => setMode('fixed')}
+          className={`relative z-10 flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors duration-300 ${
+            mode === 'fixed' ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          Fixed
+        </button>
         <button
           onClick={() => setMode('preset')}
           className={`relative z-10 flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors duration-300 ${
@@ -49,14 +57,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           }`}
         >
           Presets
-        </button>
-        <button
-          onClick={() => setMode('advanced')}
-          className={`relative z-10 flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors duration-300 ${
-            mode === 'advanced' ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
-          }`}
-        >
-          Advanced
         </button>
       </div>
 

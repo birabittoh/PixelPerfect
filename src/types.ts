@@ -1,6 +1,6 @@
 export type Dimension = 'width' | 'height';
 export type OutputFormat = 'image/png' | 'image/jpeg' | 'image/webp';
-export type Mode = 'preset' | 'advanced';
+export type Mode = 'preset' | 'fixed';
 
 export interface CropArea {
   x: number;

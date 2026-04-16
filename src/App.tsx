@@ -9,7 +9,7 @@ import { processImage } from './utils/imageProcessor';
 
 export default function App() {
   const [mode, setMode] = useState<Mode>(() => {
-    return (localStorage.getItem('pp_mode') as Mode) || 'preset';
+    return (localStorage.getItem('pp_mode') as Mode) || 'fixed';
   });
   const [targetSize, setTargetSize] = useState<number>(() => {
     const saved = localStorage.getItem('pp_targetSize');
@@ -23,7 +23,7 @@ export default function App() {
   });
   const [scaleFactor, setScaleFactor] = useState<number>(() => {
     const saved = localStorage.getItem('pp_scaleFactor');
-    return saved ? Number(saved) : 4;
+    return saved ? Number(saved) : 256;
   });
 
   const [croppingFileId, setCroppingFileId] = useState<string | null>(null);

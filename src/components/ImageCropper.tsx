@@ -20,6 +20,8 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialCrop, setInitialCrop] = useState<CropArea | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportTimerRef = useRef<number | null>(null);
 
   const imgRef = useRef<HTMLImageElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -205,7 +207,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
   }, [adjust, stopRepeating]);
 
   useEffect(() => {
-    return () => stopRepeating();
+    return () => {
+      stopRepeating();
+      if (exportTimerRef.current) window.clearTimeout(exportTimerRef.current);
+    };
   }, [stopRepeating]);
 
   const makeSquare = () => {
@@ -221,9 +226,26 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
     setCrop({ x: 0, y: 0, width: imgDims.width, height: imgDims.height });
   };
 
+  const handleExport = () => {
+    onCrop(crop);
+    setIsExporting(true);
+    if (exportTimerRef.current) window.clearTimeout(exportTimerRef.current);
+    exportTimerRef.current = window.setTimeout(() => {
+      setIsExporting(false);
+    }, 2000);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[98vh]">
+      <div className="relative bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[98vh]">
+        <button
+          onClick={onCancel}
+          className="absolute top-4 right-4 z-10 p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+          title="Close"
+        >
+          <X size={20} />
+        </button>
+
         <div className="flex-1 flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-zinc-100 dark:divide-zinc-800 min-h-0">
           {/* Main Selection Area */}
           <div className="flex-1 p-4 sm:p-6 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950/30 overflow-hidden">
@@ -347,14 +369,14 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
             onClick={onCancel}
             className="px-6 py-2.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
           >
-            Cancel
+            Done
           </button>
           <button
-            onClick={() => onCrop(crop)}
-            className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-500/25 transition-all flex items-center gap-2 active:scale-95"
+            onClick={handleExport}
+            className={`px-8 py-2.5 ${isExporting ? 'bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700'} text-white text-sm font-bold rounded-2xl shadow-lg ${isExporting ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} transition-all flex items-center gap-2 active:scale-95`}
           >
             <Check size={18} />
-            Export
+            {isExporting ? 'Exported!' : 'Export'}
           </button>
         </div>
       </div>

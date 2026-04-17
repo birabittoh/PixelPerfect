@@ -157,7 +157,6 @@ export default function App() {
     if (file && file.previewUrl) {
       handleProcessImage(file.file, file.name, file.previewUrl, crop);
     }
-    setCroppingFileId(null);
   };
 
   return (

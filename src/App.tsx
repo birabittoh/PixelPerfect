@@ -25,6 +25,10 @@ export default function App() {
     const saved = localStorage.getItem('pp_scaleFactor');
     return saved ? Number(saved) : 256;
   });
+  const [removeBg, setRemoveBg] = useState<boolean>(() => {
+    const saved = localStorage.getItem('pp_removeBg');
+    return saved !== null ? saved === 'true' : true;
+  });
 
   const [croppingFileId, setCroppingFileId] = useState<string | null>(null);
 
@@ -47,6 +51,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('pp_scaleFactor', scaleFactor.toString());
   }, [scaleFactor]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_removeBg', removeBg.toString());
+  }, [removeBg]);
 
   const [files, setFiles] = useState<ProcessedFile[]>([]);
 
@@ -94,7 +102,8 @@ export default function App() {
         targetDimension,
         targetSize,
         outputFormat,
-        cropArea
+        cropArea,
+        removeBg
       });
 
       // Auto download
@@ -169,6 +178,8 @@ export default function App() {
             setTargetSize={setTargetSize}
             outputFormat={outputFormat}
             setOutputFormat={setOutputFormat}
+            removeBg={removeBg}
+            setRemoveBg={setRemoveBg}
           />
 
           <div className="md:col-span-2 space-y-6">
@@ -188,6 +199,7 @@ export default function App() {
           imageUrl={files.find(f => f.id === croppingFileId)?.previewUrl || ''}
           onCrop={handleCrop}
           onCancel={() => setCroppingFileId(null)}
+          removeBg={removeBg}
         />
       )}
     </div>

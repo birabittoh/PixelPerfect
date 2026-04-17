@@ -13,6 +13,8 @@ interface SettingsPanelProps {
   setTargetSize: (size: number) => void;
   outputFormat: OutputFormat;
   setOutputFormat: (format: OutputFormat) => void;
+  removeBg: boolean;
+  setRemoveBg: (remove: boolean) => void;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -26,6 +28,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   setTargetSize,
   outputFormat,
   setOutputFormat,
+  removeBg,
+  setRemoveBg,
 }) => {
   return (
     <div className="md:col-span-1 space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 h-fit">
@@ -127,17 +131,39 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </>
         )}
 
-        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Output Format</label>
-          <select
-            value={outputFormat}
-            onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
-            className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-          >
-            <option value="image/png">PNG</option>
-            <option value="image/jpeg">JPEG</option>
-            <option value="image/webp">WebP</option>
-          </select>
+        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Output Format</label>
+            <select
+              value={outputFormat}
+              onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
+              className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+            >
+              <option value="image/png">PNG</option>
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between py-1">
+            <div className="space-y-0.5">
+              <label htmlFor="remove-bg" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Remove BG</label>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Auto-transparency for sprites</p>
+            </div>
+            <button
+              id="remove-bg"
+              onClick={() => setRemoveBg(!removeBg)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 ${
+                removeBg ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  removeBg ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </div>
     </div>

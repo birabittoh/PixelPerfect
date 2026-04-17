@@ -336,7 +336,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
               </div>
               <div className="flex justify-between text-[10px] font-mono text-zinc-400 uppercase tracking-wider px-1">
                 <span>X: {crop.x} Y: {crop.y}</span>
-                <span>Crop: {crop.width}x{crop.height} | Source: {imgDims.width}x{imgDims.height}</span>
+                <span>{crop.width}x{crop.height} px</span>
               </div>
             </div>
           </div>

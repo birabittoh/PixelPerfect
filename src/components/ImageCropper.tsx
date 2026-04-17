@@ -278,15 +278,6 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
           {/* Precision Panel */}
           <div className="w-full lg:w-80 bg-white dark:bg-zinc-900 p-3 sm:p-6 flex flex-col gap-3 overflow-hidden shrink-0">
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs sm:text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                <div className="flex items-center gap-1.5">
-                  <ZoomIn size={14} className="text-indigo-500" />
-                  Preview
-                </div>
-                <div className="font-mono text-[10px] text-zinc-400">
-                  {crop.width}x{crop.height} px
-                </div>
-              </div>
               <div className="relative aspect-square bg-zinc-100 dark:bg-zinc-950 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 shadow-inner flex items-center justify-center group">
                 <canvas
                   ref={magnifierCanvasRef}
@@ -345,7 +336,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
               </div>
               <div className="flex justify-between text-[10px] font-mono text-zinc-400 uppercase tracking-wider px-1">
                 <span>X: {crop.x} Y: {crop.y}</span>
-                <span>{imgDims.width}x{imgDims.height} px</span>
+                <span>Crop: {crop.width}x{crop.height} | Source: {imgDims.width}x{imgDims.height}</span>
               </div>
             </div>
           </div>

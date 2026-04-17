@@ -199,6 +199,7 @@ export default function App() {
           imageUrl={files.find(f => f.id === croppingFileId)?.previewUrl || ''}
           onCrop={handleCrop}
           onCancel={() => setCroppingFileId(null)}
+          removeBg={removeBg}
         />
       )}
     </div>

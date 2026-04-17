@@ -10,6 +10,76 @@ interface ProcessOptions {
   removeBg?: boolean;
 }
 
+export interface Color {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
+export const identifyBackgroundColor = (ctx: CanvasRenderingContext2D, width: number, height: number): Color | null => {
+  const borderPixels: Color[] = [];
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  const getPixel = (x: number, y: number) => {
+    const i = (y * width + x) * 4;
+    return { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
+  };
+
+  // Sample border pixels
+  for (let x = 0; x < width; x++) {
+    borderPixels.push(getPixel(x, 0));
+    if (height > 1) borderPixels.push(getPixel(x, height - 1));
+  }
+  for (let y = 1; y < height - 1; y++) {
+    borderPixels.push(getPixel(0, y));
+    if (width > 1) borderPixels.push(getPixel(width - 1, y));
+  }
+
+  // Count non-transparent border colors
+  const counts: Record<string, { color: Color; count: number }> = {};
+  let opaqueBorderPixels = 0;
+
+  for (const p of borderPixels) {
+    if (p.a < 128) continue; // Skip already transparent/semi-transparent pixels
+    const key = `${p.r},${p.g},${p.b},${p.a}`;
+    if (!counts[key]) counts[key] = { color: p, count: 0 };
+    counts[key].count++;
+    opaqueBorderPixels++;
+  }
+
+  if (opaqueBorderPixels > 0) {
+    let dominantKey = '';
+    let maxCount = 0;
+    for (const key in counts) {
+      if (counts[key].count > maxCount) {
+        maxCount = counts[key].count;
+        dominantKey = key;
+      }
+    }
+
+    // If more than 50% of the opaque border is one color, we consider it the background
+    if (maxCount > opaqueBorderPixels * 0.5) {
+      return counts[dominantKey].color;
+    }
+  }
+
+  return null;
+};
+
+export const applyTransparency = (ctx: CanvasRenderingContext2D, width: number, height: number, bgColor: Color) => {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] === bgColor.r && data[i + 1] === bgColor.g && data[i + 2] === bgColor.b && data[i + 3] === bgColor.a) {
+      data[i + 3] = 0;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+};
+
 export const processImage = async (
   file: File,
   previewUrl: string,
@@ -63,58 +133,9 @@ export const processImage = async (
   sourceCtx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
 
   if (removeBg) {
-    const borderPixels: { r: number; g: number; b: number; a: number }[] = [];
-    const imageData = sourceCtx.getImageData(0, 0, sourceWidth, sourceHeight);
-    const data = imageData.data;
-
-    const getPixel = (x: number, y: number) => {
-      const i = (y * sourceWidth + x) * 4;
-      return { r: data[i], g: data[i+1], b: data[i+2], a: data[i+3] };
-    };
-
-    // Sample border pixels
-    for (let x = 0; x < sourceWidth; x++) {
-      borderPixels.push(getPixel(x, 0));
-      if (sourceHeight > 1) borderPixels.push(getPixel(x, sourceHeight - 1));
-    }
-    for (let y = 1; y < sourceHeight - 1; y++) {
-      borderPixels.push(getPixel(0, y));
-      if (sourceWidth > 1) borderPixels.push(getPixel(sourceWidth - 1, y));
-    }
-
-    // Count non-transparent border colors
-    const counts: Record<string, { color: { r: number; g: number; b: number; a: number }; count: number }> = {};
-    let opaqueBorderPixels = 0;
-
-    for (const p of borderPixels) {
-      if (p.a < 128) continue; // Skip already transparent/semi-transparent pixels
-      const key = `${p.r},${p.g},${p.b},${p.a}`;
-      if (!counts[key]) counts[key] = { color: p, count: 0 };
-      counts[key].count++;
-      opaqueBorderPixels++;
-    }
-
-    if (opaqueBorderPixels > 0) {
-      let dominantKey = '';
-      let maxCount = 0;
-      for (const key in counts) {
-        if (counts[key].count > maxCount) {
-          maxCount = counts[key].count;
-          dominantKey = key;
-        }
-      }
-
-      // If more than 50% of the opaque border is one color, we consider it the background
-      if (maxCount > opaqueBorderPixels * 0.5) {
-        const bg = counts[dominantKey].color;
-        // Apply transparency to all matching pixels
-        for (let i = 0; i < data.length; i += 4) {
-          if (data[i] === bg.r && data[i+1] === bg.g && data[i+2] === bg.b && data[i+3] === bg.a) {
-            data[i+3] = 0;
-          }
-        }
-        sourceCtx.putImageData(imageData, 0, 0);
-      }
+    const bgColor = identifyBackgroundColor(sourceCtx, sourceWidth, sourceHeight);
+    if (bgColor) {
+      applyTransparency(sourceCtx, sourceWidth, sourceHeight, bgColor);
     }
   }
 

@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Check, Maximize2, Move, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Square, ZoomIn, Plus, Minus, MoveHorizontal, MoveVertical } from 'lucide-react';
 import { CropArea } from '../types';
+import { identifyBackgroundColor, applyTransparency } from '../utils/imageProcessor';
 
 interface ImageCropperProps {
   imageUrl: string;
   onCrop: (crop: CropArea) => void;
   onCancel: () => void;
+  removeBg?: boolean;
 }
 
 type DragMode = 'move' | 'resize-tl' | 'resize-br' | null;
 
-export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, onCancel }) => {
+export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, onCancel, removeBg }) => {
   const [imgDims, setImgDims] = useState({ width: 0, height: 0 });
   const [crop, setCrop] = useState<CropArea>({ x: 0, y: 0, width: 0, height: 0 });
   const repeatTimeoutRef = useRef<number | null>(null);
@@ -20,6 +22,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
   const [initialCrop, setInitialCrop] = useState<CropArea | null>(null);
 
   const imgRef = useRef<HTMLImageElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const magnifierCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -31,15 +34,19 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
     img.src = imageUrl;
   }, [imageUrl]);
 
-  // Update magnifier
+  // Update magnifier and overlay canvas
   useEffect(() => {
     if (!magnifierCanvasRef.current || !imgRef.current || imgDims.width === 0) return;
     const canvas = magnifierCanvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
+
+    const overlayCanvas = overlayCanvasRef.current;
+    const overlayCtx = overlayCanvas?.getContext('2d', { willReadFrequently: true });
 
     const img = new Image();
     img.onload = () => {
+      // 1. Process for magnifier
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -49,11 +56,30 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
       const offsetX = (canvas.width - drawWidth) / 2;
       const offsetY = (canvas.height - drawHeight) / 2;
 
-      ctx.drawImage(
-        img,
-        crop.x, crop.y, crop.width, crop.height,
-        offsetX, offsetY, drawWidth, drawHeight
-      );
+      // Create a temporary canvas for the crop to apply transparency
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = crop.width;
+      tempCanvas.height = crop.height;
+      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+      if (tempCtx) {
+        tempCtx.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+        if (removeBg) {
+          const bgColor = identifyBackgroundColor(tempCtx, crop.width, crop.height);
+          if (bgColor) {
+            applyTransparency(tempCtx, crop.width, crop.height, bgColor);
+          }
+        }
+        ctx.drawImage(tempCanvas, 0, 0, crop.width, crop.height, offsetX, offsetY, drawWidth, drawHeight);
+      }
+
+      // 2. Process for overlay if it exists
+      if (overlayCanvas && overlayCtx) {
+        overlayCanvas.width = crop.width;
+        overlayCanvas.height = crop.height;
+        overlayCtx.clearRect(0, 0, crop.width, crop.height);
+        overlayCtx.drawImage(tempCanvas, 0, 0);
+      }
 
       if (scale > 8) {
         const step = scale;
@@ -74,7 +100,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
       }
     };
     img.src = imageUrl;
-  }, [crop, imgDims, imageUrl]);
+  }, [crop, imgDims, imageUrl, removeBg]);
 
   const getRelativeCoords = (e: MouseEvent | TouchEvent) => {
     if (!imgRef.current) return null;
@@ -223,17 +249,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
                 onTouchStart={(e) => handleStart(e, 'move')}
               >
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  <img
-                    src={imageUrl}
-                    alt="Crop preview"
-                    className="absolute max-w-none"
-                    style={{
-                      left: `${(-crop.x / imgDims.width) * (imgRef.current?.clientWidth || 0)}px`,
-                      top: `${(-crop.y / imgDims.height) * (imgRef.current?.clientHeight || 0)}px`,
-                      width: `${imgRef.current?.clientWidth || 0}px`,
-                      height: `${imgRef.current?.clientHeight || 0}px`,
-                      imageRendering: 'pixelated'
-                    }}
+                  <canvas
+                    ref={overlayCanvasRef}
+                    className="absolute w-full h-full"
+                    style={{ imageRendering: 'pixelated' }}
                   />
                 </div>
 

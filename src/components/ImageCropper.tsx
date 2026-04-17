@@ -236,16 +236,14 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[98vh]">
-        <button
-          onClick={onCancel}
-          className="absolute top-4 right-4 z-10 p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
-          title="Close"
-        >
-          <X size={20} />
-        </button>
-
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300"
+      onClick={onCancel}
+    >
+      <div
+        className="relative bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[98vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex-1 flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-zinc-100 dark:divide-zinc-800 min-h-0">
           {/* Main Selection Area */}
           <div className="flex-1 p-4 sm:p-6 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950/30 overflow-hidden">
